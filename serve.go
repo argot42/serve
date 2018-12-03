@@ -9,7 +9,7 @@ import (
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Println("usage: %s <host>:<port> <path>", os.Args[0])
+		fmt.Printf("usage: %s <host>:<port> <path>\n", os.Args[0])
 		return
 	}
 
