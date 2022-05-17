@@ -1,44 +1,53 @@
 package main
 
 import (
-	"fmt"
+	"flag"
 	"log"
 	"net/http"
 	"os"
+	"io"
 )
 
 func main() {
-	nargs := len(os.Args)
-	if nargs < 2 {
-		usage()
+	help := flag.Bool("h", false, "this help")
+	verbose := flag.Bool("v", false, "verbose output")
+	stdin := flag.Bool("i", false, "serve stdin")
+
+	flag.Parse()
+
+	if *help {
+		flag.Usage()
+		os.Exit(1)
 	}
 
-	var verbose bool
-	var path string
-	var socket string
+	socket := ":1234"
+	path := "."
 
-	path = "."
+	args := flag.Args()
 
-	switch os.Args[1] {
-	case "-h":
-		usage()
-	case "-v":
-		verbose = true
-		socket = os.Args[2]
-		if nargs > 3 {
-			path = os.Args[3]
-		}
-	default:
-		socket = os.Args[1]
-		if nargs > 2 {
-			path = os.Args[2]
-		}
+	switch len(args) {
+	case 1:
+		socket = args[0]
+	case 2:
+		socket = args[0]
+		path = args[1]
 	}
 
-	handler := http.FileServer(http.Dir(path))
-	if verbose {
+	var handler http.Handler
+	var initMsg string
+
+	if *stdin {
+		initMsg = "serving stdin to " + socket
+		handler = servstr()
+	} else {
+		initMsg = "serving " + path + " to " + socket
+		handler = http.FileServer(http.Dir(path))
+	}
+	if *verbose {
 		handler = logger(handler)
+		log.Println(initMsg)
 	}
+
 	http.Handle("/", handler)
 	log.Fatal(http.ListenAndServe(socket, nil))
 }
@@ -50,7 +59,16 @@ func logger(next http.Handler) http.Handler {
 	})
 }
 
-func usage() {
-	fmt.Fprintf(os.Stderr, "usage: %s [-hv] [<host>]:<port> [<path>]\n", os.Args[0])
-	os.Exit(1)
+func servstr() http.Handler {
+	src, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, err := w.Write(src)
+		if err != nil {
+			log.Fatal(err)
+		}
+	})
 }
