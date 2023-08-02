@@ -6,7 +6,11 @@ import (
 	"net/http"
 	"os"
 	"io"
+	_ "embed"
 )
+
+//go:embed favicon.ico
+var fav []byte
 
 func main() {
 	help := flag.Bool("h", false, "this help")
@@ -48,7 +52,9 @@ func main() {
 		log.Println(initMsg)
 	}
 
+	http.HandleFunc("/favicon.ico", favHandler)
 	http.Handle("/", handler)
+
 	log.Fatal(http.ListenAndServe(socket, nil))
 }
 
@@ -71,4 +77,11 @@ func servstr() http.Handler {
 			log.Fatal(err)
 		}
 	})
+}
+
+func favHandler(w http.ResponseWriter, r *http.Request) {
+	_, err := w.Write(fav)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
